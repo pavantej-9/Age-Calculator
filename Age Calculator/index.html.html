@@ -1,0 +1,313 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Age Analytics | Ultra Aesthetic</title>
+    <style>
+        :root { 
+            --bg: #030303; 
+            --accent: #bb86fc; 
+            --glass: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --purple-glow: rgba(187, 134, 252, 0.15);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body { 
+            /* PLACEHOLDER FOR YOUR BACKGROUND IMAGE */
+            background: 
+                linear-gradient(rgba(3, 3, 3, 0.7), rgba(3, 3, 3, 0.7)), /* Dark tint for readability */
+                url('YOUR_IMAGE_LINK_HERE') no-repeat center center fixed; 
+            background-size: cover;
+            background-color: var(--bg); /* Fallback color */
+            
+            color: white; 
+            font-family: 'Inter', -apple-system, sans-serif; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh; 
+            overflow: hidden;
+            perspective: 1000px;
+        }
+
+        /* --- INTERACTIVE NEBULA BACKGROUND --- */
+        #nebula-canvas {
+            position: fixed;
+            inset: 0;
+            z-index: -2;
+            background: radial-gradient(circle at var(--x, 50%) var(--y, 50%), var(--purple-glow) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 20%, rgba(0, 200, 255, 0.05) 0%, transparent 40%);
+            transition: --x 0.2s, --y 0.2s;
+            pointer-events: none;
+        }
+
+        #clock-layer { position: absolute; inset: 0; z-index: -1; pointer-events: none; }
+
+        .aesthetic-clock {
+            position: absolute;
+            width: 120px; height: 120px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 50%;
+            animation: float drift linear infinite;
+        }
+        .aesthetic-clock::after {
+            content: ''; position: absolute; inset: -5px;
+            border-radius: 50%; border: 1px solid rgba(187, 134, 252, 0.03);
+        }
+
+        .hand { position: absolute; bottom: 50%; left: 50%; transform-origin: bottom; background: white; border-radius: 10px; }
+        .h { width: 2px; height: 20%; opacity: 0.3; animation: rot 43200s linear infinite; }
+        .m { width: 1.5px; height: 35%; opacity: 0.2; animation: rot 3600s linear infinite; }
+        .s { width: 1px; height: 45%; background: var(--accent); opacity: 0.6; animation: rot 60s linear infinite; }
+
+        @keyframes rot { from { transform: translateX(-50%) rotate(0deg); } to { transform: translateX(-50%) rotate(360deg); } }
+        @keyframes drift {
+            0% { transform: translateY(110vh) translateX(0); opacity: 0; }
+            20% { opacity: 0.4; }
+            80% { opacity: 0.4; }
+            100% { transform: translateY(-20vh) translateX(30px); opacity: 0; }
+        }
+
+        /* --- MAIN UI --- */
+        .container { 
+            width: 90%; max-width: 400px; z-index: 10; text-align: center;
+            animation: entry 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes entry { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+
+        h1 { font-weight: 200; letter-spacing: 12px; margin-bottom: 2.5rem; color: rgba(255,255,255,0.9); }
+        h1 span { color: var(--accent); font-weight: 900; filter: drop-shadow(0 0 10px var(--purple-glow)); }
+
+        .card { 
+            background: var(--glass);
+            backdrop-filter: blur(25px) saturate(180%);
+            border: 1px solid var(--glass-border);
+            padding: 1.8rem; border-radius: 30px;
+            margin-bottom: 1.2rem; cursor: pointer;
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .card:hover { 
+            background: rgba(255,255,255,0.06);
+            border-color: rgba(187, 134, 252, 0.4);
+            transform: scale(1.02) translateZ(20px);
+        }
+
+        .card label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 2px; color: var(--accent); opacity: 0.8; display: block; margin-bottom: 12px; }
+        .date-text { font-size: 1.3rem; font-weight: 300; letter-spacing: 1px; }
+
+        /* --- PICKER OVERLAY --- */
+        .overlay { 
+            position: fixed; inset: 0; background: rgba(0,0,0,0.92); 
+            backdrop-filter: blur(40px); display: flex; flex-direction: column; 
+            justify-content: center; align-items: center; z-index: 1000; 
+            opacity: 0; pointer-events: none; transition: 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .overlay.active { opacity: 1; pointer-events: auto; }
+
+        .radial-box { position: relative; width: 400px; height: 400px; transform: scale(0.8); transition: 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        .overlay.active .radial-box { transform: scale(1); }
+
+        .ring { position: absolute; border-radius: 50%; border: 1px solid rgba(255,255,255,0.05); inset: 0; margin: auto; }
+        .ring-y { width: 360px; height: 360px; }
+        .ring-m { width: 250px; height: 250px; border-color: rgba(187, 134, 252, 0.1); }
+        .ring-d { width: 140px; height: 140px; }
+
+        .ring span { position: absolute; font-size: 0.75rem; color: #666; cursor: pointer; transition: 0.3s; transform: translate(-50%, -50%); }
+        .ring span:hover { color: white; scale: 1.3; }
+        .ring span.selected { color: var(--accent); font-weight: bold; text-shadow: 0 0 15px var(--accent); }
+
+        .done-btn { 
+            width: 80px; height: 80px; background: white; color: black; border-radius: 50%; 
+            display: flex; justify-content: center; align-items: center; font-weight: 900; 
+            cursor: pointer; position: absolute; inset: 0; margin: auto; z-index: 100;
+        }
+
+        /* --- BUTTONS --- */
+        .btn-main { width: 100%; padding: 1.3rem; border-radius: 40px; border: none; background: white; color: black; font-weight: bold; cursor: pointer; transition: 0.4s; letter-spacing: 1px; }
+        .btn-main:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(187, 134, 252, 0.2); background: var(--accent); color: white; }
+        
+        .btn-reset { 
+            width: 100%; padding: 0.8rem; border-radius: 40px; border: 1px solid rgba(255, 255, 255, 0.1); 
+            background: transparent; color: #666; margin-top: 15px; cursor: pointer; transition: 0.3s;
+            font-size: 0.8rem; text-transform: uppercase; letter-spacing: 2px;
+        }
+        .btn-reset:hover { border-color: var(--accent); color: var(--accent); background: rgba(187, 134, 252, 0.05); }
+
+        .result-view { margin-top: 2.5rem; border-radius: 30px; overflow: hidden; }
+        .nav-row { margin-top: 30px; display: flex; gap: 15px; }
+        .nav-row button { background: transparent; border: 1px solid rgba(255,255,255,0.1); color: white; padding: 10px 25px; border-radius: 30px; cursor: pointer; transition: 0.3s; }
+        .nav-row button:hover { border-color: var(--accent); color: var(--accent); }
+    </style>
+</head>
+<body>
+
+    <div id="nebula-canvas"></div>
+    <div id="clock-layer"></div>
+
+    <div id="overlay" class="overlay">
+        <div class="radial-box">
+            <div class="ring ring-y" id="yr"></div>
+            <div class="ring ring-m" id="mr"></div>
+            <div class="ring ring-d" id="dr"></div>
+            <div class="done-btn" onclick="closeP()">DONE</div>
+        </div>
+        <div class="nav-row">
+            <button onclick="navY(-12)">← OLDER</button>
+            <button onclick="navY(12)">NEWER →</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <h1>AGE <span>ANALYTICS</span></h1>
+
+        <div class="card" onclick="openP('birth')">
+            <label>Birth Date</label>
+            <div class="date-text" id="birth-val">Select Date</div>
+            <input type="hidden" id="birth-raw">
+        </div>
+
+        <div class="card" onclick="openP('target')">
+            <label>Analysis Date</label>
+            <div class="date-text" id="target-val">Select Date</div>
+            <input type="hidden" id="target-raw">
+        </div>
+
+        <button class="btn-main" onclick="calc()">START ANALYSIS</button>
+        <button class="btn-reset" onclick="resetCalculator()">Reset All</button>
+
+        <div id="res" class="result-view"></div>
+    </div>
+
+    <script>
+        let curId = '';
+        let sel = { d: 1, m: 0, y: 2024 };
+        let yOffset = 2024;
+
+        // Nebula Follow Mouse
+        document.addEventListener('mousemove', e => {
+            const x = (e.clientX / window.innerWidth) * 100;
+            const y = (e.clientY / window.innerHeight) * 100;
+            document.body.style.setProperty('--x', x + '%');
+            document.body.style.setProperty('--y', y + '%');
+        });
+
+        window.onload = () => {
+            const today = new Date();
+            setD(today, 'target');
+            genClocks();
+        };
+
+        function genClocks() {
+            const layer = document.getElementById('clock-layer');
+            for (let i = 0; i < 10; i++) {
+                const clock = document.createElement('div');
+                clock.className = 'aesthetic-clock';
+                clock.style.left = `${Math.random() * 100}%`;
+                clock.style.animationDuration = `${25 + Math.random() * 20}s`;
+                clock.style.animationDelay = `-${Math.random() * 20}s`;
+                clock.style.scale = 0.5 + Math.random();
+                clock.innerHTML = `<div class="hand h"></div><div class="hand m"></div><div class="hand s"></div>`;
+                layer.appendChild(clock);
+            }
+        }
+
+        function openP(id) {
+            curId = id;
+            document.getElementById('overlay').classList.add('active');
+            drawRings();
+        }
+
+        function drawRings() {
+            const yr = document.getElementById('yr'), mr = document.getElementById('mr'), dr = document.getElementById('dr');
+            yr.innerHTML = ''; mr.innerHTML = ''; dr.innerHTML = '';
+
+            for (let i = 0; i < 12; i++) {
+                let y = yOffset - i;
+                if (y < 1900) break;
+                addItem(yr, y, i, 12, 180, 'y');
+            }
+
+            const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+            months.forEach((m, i) => addItem(mr, m, i, 12, 125, 'm'));
+
+            for (let d = 1; d <= 31; d++) {
+                addItem(dr, d, d-1, 31, 70, 'd');
+            }
+        }
+
+        function addItem(p, txt, idx, tot, rad, type) {
+            const s = document.createElement('span');
+            s.innerText = txt;
+            const ang = (idx / tot) * 2 * Math.PI - Math.PI / 2;
+            s.style.left = `calc(50% + ${Math.cos(ang) * rad}px)`;
+            s.style.top = `calc(50% + ${Math.sin(ang) * rad}px)`;
+            if (sel[type] === (type === 'm' ? idx : txt)) s.classList.add('selected');
+            s.onclick = (e) => {
+                e.stopPropagation();
+                Array.from(p.children).forEach(item => item.classList.remove('selected'));
+                s.classList.add('selected');
+                sel[type] = (type === 'm') ? idx : txt;
+            };
+            p.appendChild(s);
+        }
+
+        function navY(d) { yOffset += d; drawRings(); }
+
+        function closeP() {
+            const dObj = new Date(sel.y, sel.m, sel.d);
+            if (dObj.getMonth() !== sel.m) { alert("Invalid date for selected month"); return; }
+            setD(dObj, curId);
+            document.getElementById('overlay').classList.remove('active');
+            calc();
+        }
+
+        function setD(date, id) {
+            const raw = date.toISOString().split('T')[0];
+            const fmt = date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
+            document.getElementById(id + '-raw').value = raw;
+            document.getElementById(id + '-val').innerText = fmt;
+        }
+
+        function calc() {
+            const b = document.getElementById('birth-raw').value;
+            const t = document.getElementById('target-raw').value;
+            if (!b || !t) return;
+
+            const d1 = new Date(b), d2 = new Date(t);
+            let y = d2.getFullYear() - d1.getFullYear();
+            let m = d2.getMonth() - d1.getMonth();
+            let d = d2.getDate() - d1.getDate();
+
+            if (d < 0) { m--; d += new Date(d2.getFullYear(), d2.getMonth(), 0).getDate(); }
+            if (m < 0) { y--; m += 12; }
+
+            document.getElementById('res').innerHTML = `
+                <div style="background: rgba(187,134,252,0.1); padding: 2rem; border: 1px solid var(--accent); border-radius: 30px; animation: entry 0.8s ease forwards;">
+                    <div style="font-size: 0.8rem; letter-spacing: 3px; margin-bottom: 10px; color: var(--accent)">LIFECYCLE DATA</div>
+                    <div style="font-size: 2.8rem; font-weight: 100;">${y} <span style="font-size: 1rem; color: #666">YEARS</span></div>
+                    <div style="font-size: 1.2rem; margin-top: 5px; opacity: 0.7;">${m} MONTHS | ${d} DAYS</div>
+                </div>`;
+        }
+
+        function resetCalculator() {
+            // Reset dates
+            document.getElementById('birth-val').innerText = 'Select Date';
+            document.getElementById('birth-raw').value = '';
+            const today = new Date();
+            setD(today, 'target');
+            
+            // Clear Result
+            document.getElementById('res').innerHTML = '';
+            
+            // Reset selection tracker
+            sel = { d: today.getDate(), m: today.getMonth(), y: today.getFullYear() };
+            yOffset = today.getFullYear();
+        }
+    </script>
+</body>
+</html>
+
